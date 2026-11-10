@@ -1,66 +1,79 @@
 # tinystatus
 
-A tiny, opinionated status line generator for `swaybar`. No config. No surprises.
-
-It watches three things: default sink volume, active keyboard layout, and the clock. When something changes, it prints a line:
+A small status line for swaybar on Linux. Shows the default audio sink volume,
+keyboard layout, and local time:
 
 ```text
 42% us 2026-04-24 09:49:57 PM
 ```
 
-That's the whole program.
+Uses Sway IPC and the PulseAudio library directly, with PipeWire support through
+pipewire-pulse. No config file or shell commands. Linux and Sway only.
 
-## Implementation
+## Build and install
 
-Event-driven Rust. No polling, no shelling out.
+Requires Rust 1.85 or later, Cargo, a C toolchain, pkg-config, and PulseAudio
+development libraries.
 
-- `swayipc-async` for keyboard layout events
-- `libpulse-binding` for volume and mute changes
-- `src/layout.rs`, `src/volume.rs`, `src/clock.rs` feed into `src/main.rs`, which prints the line
-
-## Philosophy
-
-Small codebase. Hardcoded behavior on purpose. Talks to real APIs, not wrapper commands. Not a framework, not extensible by design. Does one job and stops.
-
-Want to add a metric? The source is the plugin system. Your imagination is the limit.
-
-## Scope
-
-Supports `sway` and PulseAudio/PipeWire. Plain text output only. No i3, no X11, no shell fallbacks.
-
-For X11/i3, use [v0.2.0](https://github.com/Gur0v/tinystatus/releases/tag/v0.2.0).
-
-## Build
-
-**Arch:**
-```sh
-sudo pacman -S rust pipewire-pulse libpulse
-```
-
-**Debian / Ubuntu:**
-```sh
-sudo apt install cargo libpulse-dev pipewire-pulse
-```
+Arch Linux:
 
 ```sh
-cargo build --release
-# binary: target/release/tinystatus
+sudo pacman -S --needed rust base-devel pkgconf libpulse
 ```
 
-## Usage
-
-```conf
-bar {
-    status_command /path/to/tinystatus
-}
-```
-
-Install system-wide:
+Debian / Ubuntu:
 
 ```sh
+sudo apt install build-essential cargo pkg-config libpulse-dev
+```
+
+If your distribution ships Rust older than 1.85, install a newer toolchain first.
+
+```sh
+cargo build --release --locked
 sudo install -m755 target/release/tinystatus /usr/local/bin/tinystatus
 ```
 
-## Notes
+At runtime, you need Sway and either PulseAudio or PipeWire with pipewire-pulse.
 
-Layout mappings: `English (US)` → `us`, `Russian` → `ru`, `Ukrainian` → `ua`. Anything else truncates to 3 lowercase ASCII characters. No PulseAudio → `??%`. No Sway IPC → `??`.
+## Usage
+
+Add this to your Sway configuration:
+
+```conf
+bar {
+    status_command /usr/local/bin/tinystatus
+}
+```
+
+Running `tinystatus` without arguments prints a new line whenever the displayed
+values change. It reads Sway's socket from `SWAYSOCK`, which Sway sets for programs
+it starts.
+
+```sh
+tinystatus --once     # Print one snapshot and exit
+tinystatus --version  # Print the version
+tinystatus --help     # Show usage
+```
+
+`--once` waits up to three seconds for service state. In normal operation,
+tinystatus retries lost connections with delays capped at 30 seconds. It does
+not start an audio server.
+
+## Output
+
+- Volume: a percentage, or `0%` when muted. Unavailable audio shows `??%`.
+- Layout: the first keyboard with a layout in Sway's input list. `English (US)`
+  becomes `us`, `Russian` becomes `ru`, and `Ukrainian` becomes `ua`. Other names
+  use their first three ASCII letters in lowercase. Unavailable layouts show `??`.
+- Time: local time in `YYYY-MM-DD hh:mm:ss AM/PM` format, updated each second.
+  A failed clock read shows `??`.
+
+Diagnostics go to stderr. A closed output pipe is a normal exit. Other output
+errors exit with status 1; invalid arguments exit with status 2. Missing services
+use placeholders rather than stopping the program.
+
+## License
+
+Licensed under the GNU General Public License, version 3. See [LICENSE](LICENSE)
+for the full text.

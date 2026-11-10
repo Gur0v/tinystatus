@@ -1,22 +1,21 @@
 [package]
-name = "i3status-dumb"
-version = "0.4.0"
-edition = "2021"
-
-[[bin]]
-name = "i3status-dumb"
-path = "src/main.rs"
+name = "tinystatus"
+version = "0.4.1"
+edition = "2024"
+rust-version = "1.85"
+description = "A plain-text status line for swaybar on Linux"
+license-file = "LICENSE"
+repository = "https://github.com/Gur0v/tinystatus"
 
 [dependencies]
-futures-util = "0.3"
 libc = "0.2"
-libpulse-binding = "2"
-swayipc-async = "3"
-tokio = { version = "1", features = ["macros", "rt", "sync", "time"] }
+libpulse-sys = { version = "1", default-features = false }
+serde_json = "1"
 
 [profile.release]
 codegen-units = 1
-lto = "fat"
-opt-level = 3
+lto = true
+opt-level = "s"
 panic = "abort"
+overflow-checks = true
 strip = true
