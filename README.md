@@ -1,4 +1,4 @@
-# i3status-dumb
+# tinystatus
 
 A tiny, opinionated status line generator for `swaybar`. No config. No surprises.
 
@@ -28,7 +28,7 @@ Want to add a metric? The source is the plugin system. Your imagination is the l
 
 Supports `sway` and PulseAudio/PipeWire. Plain text output only. No i3, no X11, no shell fallbacks.
 
-For X11/i3, use [v0.2.0](https://github.com/Gur0v/i3status-dumb/releases/tag/v0.2.0).
+For X11/i3, use [v0.2.0](https://github.com/Gur0v/tinystatus/releases/tag/v0.2.0).
 
 ## Build
 
@@ -44,21 +44,21 @@ sudo apt install cargo libpulse-dev pipewire-pulse
 
 ```sh
 cargo build --release
-# binary: target/release/i3status-dumb
+# binary: target/release/tinystatus
 ```
 
 ## Usage
 
 ```conf
 bar {
-    status_command /path/to/i3status-dumb
+    status_command /path/to/tinystatus
 }
 ```
 
 Install system-wide:
 
 ```sh
-sudo install -m755 target/release/i3status-dumb /usr/local/bin/i3status-dumb
+sudo install -m755 target/release/tinystatus /usr/local/bin/tinystatus
 ```
 
 ## Notes
