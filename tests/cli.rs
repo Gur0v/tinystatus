@@ -12,6 +12,8 @@ fn command() -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_tinystatus"));
     command
         .env_remove("SWAYSOCK")
+        .env_remove("I3SOCK")
+        .env_remove("DISPLAY")
         .env("PULSE_SERVER", "unix:/nonexistent/tinystatus");
     command
 }
@@ -78,7 +80,10 @@ fn reply(stream: &mut UnixStream, kind: u32, payload: &[u8]) -> std::io::Result<
 fn flags_and_unavailable_services() {
     let version = command().arg("--version").output().unwrap();
     assert!(version.status.success());
-    assert_eq!(version.stdout, b"tinystatus 0.4.1\n");
+    assert_eq!(
+        version.stdout,
+        format!("tinystatus {}\n", env!("CARGO_PKG_VERSION")).as_bytes()
+    );
     let help = command().arg("--help").output().unwrap();
     assert!(help.status.success());
     assert!(help.stdout.starts_with(b"usage: tinystatus"));
@@ -97,6 +102,20 @@ fn flags_and_unavailable_services() {
             .count(),
         1
     );
+}
+
+#[test]
+fn i3_adds_a_trailing_space_to_status() {
+    let output = command()
+        .arg("--once")
+        .env("I3SOCK", "/unused")
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert!(output.stdout.ends_with(b" \n"));
+    let output = command().arg("--once").output().unwrap();
+    assert!(output.status.success());
+    assert!(!output.stdout.ends_with(b" \n"));
 }
 
 #[test]

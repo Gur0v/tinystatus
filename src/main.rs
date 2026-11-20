@@ -1,12 +1,10 @@
 #![deny(unsafe_op_in_unsafe_fn, clippy::undocumented_unsafe_blocks)]
 
-#[cfg(not(target_os = "linux"))]
-compile_error!("tinystatus supports Linux only");
-
 mod layout;
 mod status;
 mod volume;
 mod watch;
+mod x11;
 
 use std::env;
 use std::ffi::OsString;
@@ -47,15 +45,23 @@ fn mode(mut args: impl Iterator<Item = OsString>) -> Result<Mode, &'static str> 
     }
 }
 
+fn render_status(status: &Status, line: &mut String, i3: bool) {
+    status.render(line);
+    if i3 {
+        line.push(' ');
+    }
+}
+
 fn write_status(
     status: &Status,
     out: &mut impl Write,
     line: &mut String,
     previous: &mut String,
+    i3: bool,
 ) -> io::Result<Instant> {
     // Capture the deadline before formatting or flushing can cross a second.
     let deadline = Instant::now() + status::until_next_second();
-    status.render(line);
+    render_status(status, line, i3);
     if line != previous {
         writeln!(out, "{line}")?;
         out.flush()?;
@@ -71,6 +77,7 @@ fn run(mode: Mode, out: &mut impl Write) -> io::Result<()> {
         _ => {}
     }
     let once = mode == Mode::Once;
+    let i3 = env::var_os("SWAYSOCK").is_none() && env::var_os("I3SOCK").is_some();
     let (tx, rx) = mpsc::sync_channel(16);
     let volume_tx = tx.clone();
     thread::Builder::new()
@@ -93,7 +100,7 @@ fn run(mode: Mode, out: &mut impl Write) -> io::Result<()> {
                 return layout::watch(layout_tx);
             }
             let layout = layout::current().unwrap_or_else(|error| {
-                watch::log_error("sway", error);
+                watch::log_error("layout", error);
                 "??".into()
             });
             let _ = layout_tx.send(Update::Layout(layout));
@@ -109,13 +116,13 @@ fn run(mode: Mode, out: &mut impl Write) -> io::Result<()> {
                 Err(_) => break,
             }
         }
-        status.render(&mut line);
+        render_status(&status, &mut line, i3);
         writeln!(out, "{line}")?;
         return out.flush();
     }
     let mut previous = String::with_capacity(40);
     loop {
-        let deadline = write_status(&status, out, &mut line, &mut previous)?;
+        let deadline = write_status(&status, out, &mut line, &mut previous, i3)?;
         match rx.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
             Ok(update) => {
                 status.update(update);
@@ -209,6 +216,7 @@ mod tests {
             &mut SlowFlush,
             &mut String::new(),
             &mut String::new(),
+            false,
         )
         .unwrap();
         assert!(deadline <= Instant::now());
@@ -218,6 +226,9 @@ mod tests {
     fn version_uses_package_metadata() {
         let mut out = Vec::new();
         run(Mode::Version, &mut out).unwrap();
-        assert_eq!(String::from_utf8(out).unwrap(), "tinystatus 0.4.1\n");
+        assert_eq!(
+            String::from_utf8(out).unwrap(),
+            format!("tinystatus {}\n", env!("CARGO_PKG_VERSION"))
+        );
     }
 }

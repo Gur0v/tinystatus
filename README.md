@@ -1,14 +1,16 @@
 # tinystatus
 
-A small status line for swaybar on Linux. Shows the default audio sink volume,
-keyboard layout, and local time:
+A small status line for swaybar or i3bar on Linux and FreeBSD. Shows the default
+audio sink volume, keyboard layout, and local time:
 
 ```text
 42% us 2026-04-24 09:49:57 PM
 ```
 
-Uses Sway IPC and the PulseAudio library directly, with PipeWire support through
-pipewire-pulse. No config file or shell commands. Linux and Sway only.
+Uses Sway IPC or X11 XKB for keyboard layout and the PulseAudio library for
+volume, with PipeWire support through pipewire-pulse. No config file or shell
+commands. If `SWAYSOCK` is set, Sway is used; otherwise X11 uses `DISPLAY`.
+X11 layout changes are received from XKB events.
 
 ## Build and install
 
@@ -27,6 +29,12 @@ Debian / Ubuntu:
 sudo apt install build-essential cargo pkg-config libpulse-dev
 ```
 
+FreeBSD:
+
+```sh
+sudo pkg install rust pkgconf pulseaudio
+```
+
 If your distribution ships Rust older than 1.85, install a newer toolchain first.
 
 ```sh
@@ -34,11 +42,12 @@ cargo build --release --locked
 sudo install -m755 target/release/tinystatus /usr/local/bin/tinystatus
 ```
 
-At runtime, you need Sway and either PulseAudio or PipeWire with pipewire-pulse.
+At runtime, you need Sway or an X11 session, and either PulseAudio or PipeWire
+with pipewire-pulse.
 
 ## Usage
 
-Add this to your Sway configuration:
+Add this to your Sway or i3 configuration:
 
 ```conf
 bar {
@@ -63,7 +72,8 @@ not start an audio server.
 ## Output
 
 - Volume: a percentage, or `0%` when muted. Unavailable audio shows `??%`.
-- Layout: the first keyboard with a layout in Sway's input list. `English (US)`
+- Layout: the first keyboard with a layout in Sway's input list, or the active
+  XKB group on X11. `English (US)`
   becomes `us`, `Russian` becomes `ru`, and `Ukrainian` becomes `ua`. Other names
   use their first three ASCII letters in lowercase. Unavailable layouts show `??`.
 - Time: local time in `YYYY-MM-DD hh:mm:ss AM/PM` format, updated each second.

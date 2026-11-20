@@ -68,6 +68,49 @@ fn connect_path(path: &std::ffi::OsStr, timeout: std::time::Duration) -> io::Res
             return Ok(stream);
         }
         let error = io::Error::last_os_error();
+        if error.raw_os_error() == Some(libc::EINPROGRESS) {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            let timeout = remaining.as_millis().clamp(1, i32::MAX as u128) as i32;
+            let mut descriptor = libc::pollfd {
+                fd: fd.as_raw_fd(),
+                events: libc::POLLOUT,
+                revents: 0,
+            };
+            // SAFETY: descriptor points to one initialized pollfd for this call.
+            let ready = unsafe { libc::poll(&mut descriptor, 1, timeout) };
+            if ready > 0 {
+                let mut socket_error: libc::c_int = 0;
+                let mut length = std::mem::size_of_val(&socket_error) as libc::socklen_t;
+                // SAFETY: both output pointers refer to initialized writable storage.
+                let result = unsafe {
+                    libc::getsockopt(
+                        fd.as_raw_fd(),
+                        libc::SOL_SOCKET,
+                        libc::SO_ERROR,
+                        std::ptr::from_mut(&mut socket_error).cast(),
+                        &mut length,
+                    )
+                };
+                if result == 0 && socket_error == 0 {
+                    let stream = UnixStream::from(fd);
+                    stream.set_nonblocking(false)?;
+                    stream.set_write_timeout(Some(TIMEOUT))?;
+                    return Ok(stream);
+                }
+                return Err(if result == 0 {
+                    io::Error::from_raw_os_error(socket_error)
+                } else {
+                    io::Error::last_os_error()
+                });
+            }
+            if ready == 0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::TimedOut,
+                    "sway connection timed out",
+                ));
+            }
+            return Err(io::Error::last_os_error());
+        }
         if !matches!(error.raw_os_error(), Some(libc::EAGAIN | libc::EINTR)) {
             return Err(error);
         }
@@ -127,7 +170,7 @@ fn receive(stream: &mut impl Read) -> io::Result<(u32, Value)> {
     Ok((kind, value))
 }
 
-fn code(name: &str) -> String {
+pub(crate) fn code(name: &str) -> String {
     for (part, code) in [
         ("English (US)", "us"),
         ("Russian", "ru"),
@@ -224,6 +267,9 @@ fn query(stream: &mut UnixStream) -> io::Result<Selection> {
 }
 
 pub fn current() -> io::Result<String> {
+    if env::var_os("SWAYSOCK").is_none() {
+        return crate::x11::current();
+    }
     Ok(query(&mut connect()?)?.code)
 }
 
@@ -269,6 +315,9 @@ fn run(tx: &SyncSender<Update>) -> io::Result<()> {
 }
 
 pub fn watch(tx: SyncSender<Update>) {
+    if env::var_os("SWAYSOCK").is_none() {
+        return crate::x11::watch(tx);
+    }
     watch::watch(tx, "sway", || Update::Layout("??".into()), run);
 }
 
@@ -312,6 +361,7 @@ mod tests {
         );
     }
 
+    #[cfg(target_os = "linux")]
     #[test]
     fn full_socket_backlog_has_a_connection_deadline() {
         let path =
