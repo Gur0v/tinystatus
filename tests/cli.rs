@@ -13,6 +13,7 @@ fn command() -> Command {
     command
         .env_remove("SWAYSOCK")
         .env_remove("I3SOCK")
+        .env_remove("MORTARSOCK")
         .env_remove("DISPLAY")
         .env("PULSE_SERVER", "unix:/nonexistent/tinystatus");
     command
@@ -113,6 +114,14 @@ fn i3_adds_a_trailing_space_to_status() {
         .unwrap();
     assert!(output.status.success());
     assert!(output.stdout.ends_with(b" \n"));
+    let output = command()
+        .arg("--once")
+        .env("I3SOCK", "/unused")
+        .env("MORTARSOCK", "/unused")
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    assert!(!output.stdout.ends_with(b" \n"));
     let output = command().arg("--once").output().unwrap();
     assert!(output.status.success());
     assert!(!output.stdout.ends_with(b" \n"));

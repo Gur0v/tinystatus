@@ -77,7 +77,9 @@ fn run(mode: Mode, out: &mut impl Write) -> io::Result<()> {
         _ => {}
     }
     let once = mode == Mode::Once;
-    let i3 = env::var_os("SWAYSOCK").is_none() && env::var_os("I3SOCK").is_some();
+    let i3 = env::var_os("SWAYSOCK").is_none()
+        && env::var_os("MORTARSOCK").is_none()
+        && env::var_os("I3SOCK").is_some();
     let (tx, rx) = mpsc::sync_channel(16);
     let volume_tx = tx.clone();
     thread::Builder::new()
