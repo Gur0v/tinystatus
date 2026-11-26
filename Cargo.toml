@@ -1,6 +1,6 @@
 [package]
 name = "tinystatus"
-version = "0.4.2"
+version = "0.4.3"
 edition = "2024"
 rust-version = "1.85"
 description = "A plain-text status line for Sway and X11"

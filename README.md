@@ -1,6 +1,6 @@
 # tinystatus
 
-A small status line for swaybar or i3bar on Linux and FreeBSD. Shows the default
+A small status line for swaybar, i3bar, or [mortarbar](https://gitlab.com/clangd/mortar) on Linux and FreeBSD. Shows the default
 audio sink volume, keyboard layout, and local time:
 
 ```text
@@ -53,6 +53,12 @@ Add this to your Sway or i3 configuration:
 bar {
     status_command /usr/local/bin/tinystatus
 }
+```
+
+For mortarbar, add this to your mortar configuration:
+
+```scheme
+(bar-status "/usr/local/bin/tinystatus")
 ```
 
 Running `tinystatus` without arguments prints a new line whenever the displayed
